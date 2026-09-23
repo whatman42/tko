@@ -1,0 +1,101 @@
+# P0.7 — Live runtime contract proof (Tokocrypto)
+#
+# LOCKED:
+#   - workflow_dispatch only (no auto on push)
+#   - environment: live (secrets injected there)
+#   - no create_order / cancel_order
+#   - no secret printing; artifact is non-sensitive summary JSON
+#   - live failure → job FAIL (no mock fallback)
+#   - EXECUTION_ENABLEMENT stays BLOCKED even on proof VERIFIED
+#
+# Secrets required (environment "live"):
+#   TOKOCRYPTO_API_KEY
+#   TOKOCRYPTO_API_SECRET
+
+name: P0 Runtime Proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      private_ws_timeout:
+        description: "Seconds to wait for private WS SUBSCRIBED"
+        required: false
+        default: "20"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-proof:
+    name: Live contract proof
+    runs-on: ubuntu-latest
+    environment: live
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Guard — secrets present (no values)
+        env:
+          TOKOCRYPTO_API_KEY: ${{ secrets.TOKOCRYPTO_API_KEY }}
+          TOKOCRYPTO_API_SECRET: ${{ secrets.TOKOCRYPTO_API_SECRET }}
+        run: |
+          if [ -z "$TOKOCRYPTO_API_KEY" ] || [ -z "$TOKOCRYPTO_API_SECRET" ]; then
+            echo "Missing TOKOCRYPTO_API_KEY or TOKOCRYPTO_API_SECRET in environment 'live'"
+            exit 1
+          fi
+          echo "Secrets present: key_len=${#TOKOCRYPTO_API_KEY} secret_len=${#TOKOCRYPTO_API_SECRET}"
+
+      - name: Guard — source has no create_order on proof path
+        run: |
+          if grep -RIn --include='*.py' -E 'def create_order|def cancel_order' scripts/p0_runtime_proof.py; then
+            echo "create_order/cancel_order must not appear in proof script"
+            exit 1
+          fi
+          echo "Proof script has no order placement methods"
+
+      - name: Run P0.7 runtime proof
+        env:
+          TOKOCRYPTO_API_KEY: ${{ secrets.TOKOCRYPTO_API_KEY }}
+          TOKOCRYPTO_API_SECRET: ${{ secrets.TOKOCRYPTO_API_SECRET }}
+          P0_PROOF_WS_TIMEOUT: ${{ inputs.private_ws_timeout }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          mkdir -p artifacts
+          python scripts/p0_runtime_proof.py --out artifacts/p0-runtime-proof.json
+
+      - name: Assert artifact invariants
+        if: always() && hashFiles('artifacts/p0-runtime-proof.json') != ''
+        run: |
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          p = Path("artifacts/p0-runtime-proof.json")
+          data = json.loads(p.read_text())
+          assert data.get("execution_enablement") == "BLOCKED", data
+          assert data.get("create_order_called") is False, data
+          assert data.get("cancel_order_called") is False, data
+          print("artifact invariants ok")
+          PY
+
+      - name: Upload proof artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-runtime-proof
+          path: artifacts/p0-runtime-proof.json
+          if-no-files-found: warn
+          retention-days: 30
