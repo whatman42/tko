@@ -9,7 +9,6 @@ from src.python.exchange.contracts.public_market_ws import PublicMarketWS
 from src.python.exchange.contracts.private_user_stream import PrivateUserStream
 from src.python.exchange.contracts.account_state import AccountStateStore
 
-
 FORBIDDEN_METHOD_NAMES = {
     "create_order",
     "cancel_order",
@@ -30,9 +29,7 @@ def _public_methods(cls) -> set[str]:
 
 def test_exchange_client_has_no_order_methods():
     methods = _public_methods(AbstractExchangeClient)
-    assert not (methods & FORBIDDEN_METHOD_NAMES), (
-        f"P0 ExchangeClient must not expose order methods: {methods & FORBIDDEN_METHOD_NAMES}"
-    )
+    assert not (methods & FORBIDDEN_METHOD_NAMES)
 
 
 def test_protocol_exchange_client_annotations_exclude_orders():
@@ -44,6 +41,4 @@ def test_protocol_exchange_client_annotations_exclude_orders():
 def test_other_p0_contracts_have_no_order_methods():
     for cls in (SymbolRouter, PublicMarketWS, PrivateUserStream, AccountStateStore):
         methods = _public_methods(cls)
-        assert not (methods & FORBIDDEN_METHOD_NAMES), (
-            f"{cls.__name__} must not expose order methods in P0"
-        )
+        assert not (methods & FORBIDDEN_METHOD_NAMES), cls.__name__
