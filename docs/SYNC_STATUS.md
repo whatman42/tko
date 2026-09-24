@@ -1,19 +1,28 @@
 # Remote sync status (2026-09-24)
 
-Local tree is authoritative (83 pytest offline GREEN).
+**Status:** SYNC COMPLETE for P0/P1/P2 source + tests required for offline CI.
 
-## Required before P0.7 Runtime Proof
+Authoritative local: 83 pytest offline GREEN.
 
-- `src/python/runtime/state/store.py`
-- `src/python/exchange/tokocrypto/rest/parsers.py`
-- `src/python/exchange/tokocrypto/websocket/private_ws.py`
-- `src/python/exchange/tokocrypto/websocket/public_ws.py`
-- `src/python/exchange/tokocrypto/execution_readiness.py`
-- `src/python/governance/market_structure/*`
-- remaining invariant tests under `tests/`
+## Remote main now includes
 
-## Order
+- `store.py`, `parsers.py`, `client.py`
+- `private_ws.py`, `public_ws.py`
+- `gate.py`, `decimal_rules.py`, market_structure package
+- `execution_readiness.py`
+- Full `tests/exchange`, `tests/invariants`, `tests/websocket`, `tests/contracts`
+- `scripts/p0_runtime_proof.py`
+- Workflows: `ci_unit.yml`, `p0_runtime_proof.yml`
 
-SYNC → CI Unit GREEN → P0.7 Runtime Proof → VERIFIED/FAILED → P3 (still BLOCKED)
+## Next ordered steps
 
-After VERIFIED: `LIVE_RUNTIME_PROOF=VERIFIED`, `EXECUTION_ENABLEMENT=BLOCKED` until P7.
+1. **CI Unit** on `main` → must be GREEN (no secrets)
+2. **P0.7** `workflow_dispatch` + environment `live` → VERIFIED | FAILED
+3. On VERIFIED: `LIVE_RUNTIME_PROOF=VERIFIED`, **`EXECUTION_ENABLEMENT=BLOCKED`**
+4. Then P3 skeleton only (still NO ORDER until P7)
+
+## Guards (unchanged)
+
+- create_order / cancel_order: ABSENT
+- PAPER / DRY_RUN / SHADOW runtime: ABSENT
+- EXECUTION_ENABLEMENT: BLOCKED
