@@ -1,6 +1,6 @@
 [project]
 name = "tko"
-version = "0.1.0-p0"
+version = "0.1.0.dev0"
 description = "Tokocrypto LIVE ONLY bot — P0 Exchange Foundation"
 requires-python = ">=3.11"
 dependencies = [
